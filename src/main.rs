@@ -1,5 +1,5 @@
 use coitrees::{COITree, IntervalNode};
-use eds::DT;
+use eds::{self, Sequence};
 use rand::distributions::{Distribution, Uniform};
 use std::collections::HashSet;
 
@@ -44,7 +44,7 @@ fn generate_random_base() -> char {
     }
 }
 
-fn mutate(matrix: &mut Vec<Vec<u8>>, config: &Config) {
+fn mutate(matrix: &mut Vec<Vec<u8>>, config: &Config) -> eds::DT {
     let n = config.n;
     let mut selected_loci = HashSet::<usize>::new();
     let locus_universe: Uniform<usize> = Uniform::from(0..n);
@@ -123,12 +123,10 @@ fn mutate(matrix: &mut Vec<Vec<u8>>, config: &Config) {
         counter += 1;
     }
 
-    let dt = DT {
+    eds::DT {
         data: matrix.clone(),
         z: config.s,
-    };
-
-    // eprintln!("{}", dt);
+    }
 }
 
 fn percent(d: usize, n: usize) -> usize {
@@ -161,8 +159,7 @@ fn main() {
     // eprintln!("{}", genome);
 
     let mut matrix: Vec<Vec<u8>> = genome.chars().map(|c| vec![c as u8]).collect();
-    mutate(&mut matrix, &config);
+    let dt = mutate(&mut matrix, &config);
 
-    eprintln!("Stats");
-    eprintln!("-----");
+    dt.to_msa();
 }
