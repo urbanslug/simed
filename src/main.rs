@@ -1,18 +1,13 @@
 use coitrees::{COITree, IntervalNode};
 use eds::{self, Sequence};
 use rand::distributions::{Distribution, Uniform};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-#[derive(Debug)]
-struct Config {
-    pub n: usize,
-    pub d: usize, // percentage of degeneracy
-    pub s: usize, // number of variants in a degenerate segment
-    pub l: usize, // max number of variants in a degenerate segment
-    pub max_degenerate: usize,
-}
+mod cli;
+mod types;
+mod utils;
 
-type Segment = IntervalNode<(), usize>;
+// type Segment = IntervalNode<(), usize>;
 
 fn generate_genome(genome_length: usize) -> String {
     // generate genome with a uniform distribution of bases
@@ -44,23 +39,28 @@ fn generate_random_base() -> char {
     }
 }
 
-fn mutate(matrix: &mut Vec<Vec<u8>>, config: &Config) -> eds::DT {
+fn mutate(
+    matrix: &mut Vec<Vec<u8>>,
+    config: &types::Config,
+) -> (eds::DT, HashMap<usize, (usize, usize)>) {
     let n = config.n;
     let mut selected_loci = HashSet::<usize>::new();
     let locus_universe: Uniform<usize> = Uniform::from(0..n);
-    let variants_universe: Uniform<usize> = Uniform::from(2..config.s + 1);
+    let variants_universe: Uniform<usize> = Uniform::from(1..config.s);
     let variants_length_universe: Uniform<usize> = Uniform::from(1..config.l + 1);
 
     let mut rng = rand::thread_rng();
 
     let mut counter = 0;
 
+    let mut degenerate_regions =
+        HashMap::<usize, (usize, usize)>::with_capacity(config.max_degenerate);
     let mut covered: HashSet<usize> = HashSet::with_capacity(config.n);
 
     eprintln!("locus\tl\ts");
     eprintln!("------------------");
 
-    let mut size = config.n;
+    let mut _size = config.n;
 
     let buffer = 0; // artificial buffer between degenerate letters
 
@@ -100,6 +100,8 @@ fn mutate(matrix: &mut Vec<Vec<u8>>, config: &Config) -> eds::DT {
             panic!("Failed interval check ({degenerate_start}, {degenerate_stop})");
         }
 
+        degenerate_regions.insert(degenerate_start, (l, s));
+
         for i in degenerate_start..degenerate_stop {
             // max entropy
             let mut s_prime = 0;
@@ -110,11 +112,11 @@ fn mutate(matrix: &mut Vec<Vec<u8>>, config: &Config) -> eds::DT {
 
                 let base = generate_random_base() as u8;
 
-                if s < 4 && matrix[i].iter().any(|b| *b == base) {
+                if s < types::NUCLEOTIDE_COUNT && matrix[i].iter().any(|b| *b == base) {
                     continue;
                 }
                 matrix[i].push(base as u8);
-                size += 1;
+                //size += 1;
                 s_prime += 1;
             }
         }
@@ -123,28 +125,52 @@ fn mutate(matrix: &mut Vec<Vec<u8>>, config: &Config) -> eds::DT {
         counter += 1;
     }
 
-    eds::DT {
+    let dt = eds::DT {
         data: matrix.clone(),
         z: config.s,
-    }
+    };
+
+    (dt, degenerate_regions)
 }
 
 fn percent(d: usize, n: usize) -> usize {
     ((d as f64 / 100_f64) * n as f64).floor() as usize
 }
 
-fn main() {
-    let n: usize = 1_000_000;
-    let d: usize = 10;
-    let x = percent(d, n);
+fn write_eds(dt: &eds::DT, lookup: &HashMap<usize, (usize, usize)>) {
+    let mut pos = 0;
 
-    let config = Config {
-        n,
-        d,
-        s: 3,
-        l: 5,
-        max_degenerate: x,
-    };
+    loop {
+        if pos >= dt.p() {
+            break;
+        }
+
+        match lookup.get(&pos).copied() {
+            None => {
+                let col: String = dt[pos].iter().take(1).map(|c| *c as char).collect();
+                print!("{}", col);
+                pos += 1;
+            }
+            Some((length, depth)) => {
+                print!("{{");
+                for s in 0..=depth {
+                    for l in pos..pos + length {
+                        print!("{}", dt[l][s] as char);
+                    }
+                    if s < depth {
+                        print!(",");
+                    }
+                }
+
+                print!("}}");
+                pos += length;
+            }
+        }
+    }
+}
+
+fn main() {
+    let config = cli::start();
 
     eprintln!("Stats");
     eprintln!("max degenerate loci: {}", config.max_degenerate * config.l);
@@ -159,7 +185,15 @@ fn main() {
     // eprintln!("{}", genome);
 
     let mut matrix: Vec<Vec<u8>> = genome.chars().map(|c| vec![c as u8]).collect();
-    let dt = mutate(&mut matrix, &config);
+    let (dt, region_map) = mutate(&mut matrix, &config);
 
-    dt.to_msa();
+    // output eds format
+    write_eds(&dt, &region_map);
+
+    // display dt
+    // println!();
+    // println!("{}", dt);
+
+    // output in msa format
+    // dt.to_msa();
 }
