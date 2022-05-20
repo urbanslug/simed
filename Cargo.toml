@@ -2,7 +2,7 @@
 name = "simed"
 version = "0.0.1"
 edition = "2021"
-description = "Simulate Degenerate String"
+description = "Simulate Degenerate Text"
 authors = ["Njagi Mwaniki <njagi+bio@njagi.me>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
