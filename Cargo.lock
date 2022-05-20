@@ -56,14 +56,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "coitrees"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6eb4c41337c234542964ca3b130baafcad03f2e931d7843902750b60515e5ed0"
-
-[[package]]
 name = "eds"
 version = "0.0.1"
+source = "git+https://github.com/urbanslug/eds.git#b4d72134629ae83b188e5c27160856edd42cc0db"
 
 [[package]]
 name = "getrandom"
@@ -151,10 +146,9 @@ dependencies = [
 
 [[package]]
 name = "simed"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "clap",
- "coitrees",
  "eds",
  "rand",
 ]

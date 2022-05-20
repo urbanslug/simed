@@ -16,10 +16,10 @@ pub fn start() -> types::Config {
         .author(AUTHORS)
         .about(DESCRIPTION)
         .arg(
-            Arg::new("small_n")
+            Arg::new("width")
                 .required(true)
                 .takes_value(true)
-                .help("Value for small n"),
+                .help("Width of the DT"),
         )
         .arg(
             Arg::new("d")
@@ -45,20 +45,10 @@ pub fn start() -> types::Config {
                 .default_value("2")
                 .help("Maximum number of variants in a degenerate position"),
         )
-        .arg(
-            Arg::new("v")
-                .short('v')
-                .multiple_occurrences(true)
-                .help("Sets the level of verbosity [default: 0]"),
-        )
         .get_matches();
 
     // Gets a value for config if supplied by user, or defaults to "default.conf"
-    let n: usize = matches
-        .value_of("small_n")
-        .unwrap()
-        .parse::<usize>()
-        .unwrap();
+    let n: usize = matches.value_of("width").unwrap().parse::<usize>().unwrap();
     let d: usize = matches.value_of("d").unwrap().parse::<usize>().unwrap();
     let s: usize = matches
         .value_of("max_variants")

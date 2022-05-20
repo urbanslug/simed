@@ -1,5 +1,4 @@
-use coitrees::{COITree, IntervalNode};
-use eds::{self, Sequence};
+use eds;
 use rand::distributions::{Distribution, Uniform};
 use std::collections::{HashMap, HashSet};
 
@@ -57,10 +56,7 @@ fn mutate(
         HashMap::<usize, (usize, usize)>::with_capacity(config.max_degenerate);
     let mut covered: HashSet<usize> = HashSet::with_capacity(config.n);
 
-    eprintln!("locus\tl\ts");
-    eprintln!("------------------");
-
-    let mut _size = config.n;
+    let mut size = config.n;
 
     let buffer = 0; // artificial buffer between degenerate letters
 
@@ -116,7 +112,7 @@ fn mutate(
                     continue;
                 }
                 matrix[i].push(base as u8);
-                //size += 1;
+                size += 1;
                 s_prime += 1;
             }
         }
@@ -128,6 +124,7 @@ fn mutate(
     let dt = eds::DT {
         data: matrix.clone(),
         z: config.s,
+        size,
     };
 
     (dt, degenerate_regions)
@@ -172,28 +169,31 @@ fn write_eds(dt: &eds::DT, lookup: &HashMap<usize, (usize, usize)>) {
 fn main() {
     let config = cli::start();
 
-    eprintln!("Stats");
-    eprintln!("max degenerate loci: {}", config.max_degenerate * config.l);
+    eprintln!(
+        "Config:\n\
+               {0:indent_two$}DT width: {1}\n\
+               {0:indent_two$}Degeneracy: {2}%\n\
+               {0:indent_two$}Max variants in a degenerate segment: {3}\n\
+               {0:indent_two$}Max length of a variant: {4}\n\
+               {0:indent_two$}Max number of degenerate letters in DT: {5}",
+        "",
+        config.n,
+        config.d,
+        config.s,
+        config.l,
+        config.max_degenerate,
+        indent_two = 2,
+    );
 
     if (config.max_degenerate * config.l) >= percent(25, config.n) {
         eprintln!("Warning: too much variation. More than 25% variation");
     }
 
-    eprintln!("{:?}", config);
-
     let genome = generate_genome(config.n);
-    // eprintln!("{}", genome);
 
     let mut matrix: Vec<Vec<u8>> = genome.chars().map(|c| vec![c as u8]).collect();
     let (dt, region_map) = mutate(&mut matrix, &config);
 
     // output eds format
     write_eds(&dt, &region_map);
-
-    // display dt
-    // println!();
-    // println!("{}", dt);
-
-    // output in msa format
-    // dt.to_msa();
 }
