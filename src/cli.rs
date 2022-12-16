@@ -1,8 +1,7 @@
-use clap::{Arg, Command};
+use clap::{value_parser, Arg, ArgAction, Command};
 use std::env;
 
 use crate::types;
-use crate::utils;
 
 // Env vars
 const NAME: &str = env!("CARGO_PKG_NAME");
@@ -17,56 +16,77 @@ pub fn start() -> types::Config {
         .about(DESCRIPTION)
         .arg(
             Arg::new("width")
-                .required(true)
-                .takes_value(true)
-                .help("Width of the DT"),
+                .short('w')
+                .long("width")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .action(ArgAction::Set)
+                .help("Width of the (E)DT"),
+        )
+        .arg(
+            Arg::new("ineastlic")
+                .short('i')
+                .long("inelastic")
+                .action(clap::ArgAction::SetTrue)
+                .help("output inelastic degenerate string"),
         )
         .arg(
             Arg::new("d")
                 .short('d')
                 .long("percent-degenerate")
-                .multiple_values(false)
-                .default_value("10")
+                .default_value("10.0")
+                .value_parser(value_parser!(f64))
+                .action(ArgAction::Set)
                 .help("percentage of degenerate loci"),
+        )
+        .arg(
+            Arg::new("fasta")
+                .short('f')
+                .long("fasta")
+                .value_parser(value_parser!(String))
+                .action(ArgAction::Set)
+                .required(false)
+                .help("input fasta file. If multifasta, it uses only the first sequence"),
         )
         .arg(
             Arg::new("max_length")
                 .short('l')
                 .long("max-length")
-                .multiple_values(false)
                 .default_value("1")
+                .value_parser(value_parser!(usize))
+                .action(ArgAction::Set)
                 .help("max length of a degenerate segment"),
         )
         .arg(
             Arg::new("max_variants")
                 .short('s')
                 .long("max-variants")
-                .multiple_values(false)
                 .default_value("2")
+                .value_parser(value_parser!(usize))
+                .action(ArgAction::Set)
                 .help("Maximum number of variants in a degenerate position"),
         )
         .get_matches();
 
     // Gets a value for config if supplied by user, or defaults to "default.conf"
-    let n: usize = matches.value_of("width").unwrap().parse::<usize>().unwrap();
-    let d: usize = matches.value_of("d").unwrap().parse::<usize>().unwrap();
-    let s: usize = matches
-        .value_of("max_variants")
-        .unwrap()
-        .parse::<usize>()
-        .unwrap();
-    let l: usize = matches
-        .value_of("max_length")
-        .unwrap()
-        .parse::<usize>()
-        .unwrap();
+    let fasta: Option<String> = matches.get_one::<String>("fasta").map(|s| String::from(s));
+    let n: Option<usize> = matches.get_one::<usize>("width").copied();
+    let i: bool = matches.get_one::<bool>("i").is_some();
+    let d: f64 = *matches.get_one::<f64>("d").unwrap();
+    let s: usize = *matches.get_one::<usize>("max_variants").unwrap();
+    let l: usize = *matches.get_one::<usize>("max_length").unwrap();
 
-    let x = utils::percent(d, n);
+    if fasta.is_none() && n.is_none() {
+        panic!("[simed::cli] Expect either width or fasta");
+    }
+
     types::Config {
+        fasta,
+        i,
         n,
         d,
         s,
         l,
-        max_degenerate: x,
+        max_degenerate: None,
     }
 }

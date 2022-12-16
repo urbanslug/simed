@@ -9,5 +9,6 @@ authors = ["Njagi Mwaniki <njagi+bio@njagi.me>"]
 
 [dependencies]
 rand = "0.8.5"
-clap = "3.1.6"
+clap = "4.0.29"
 eds = { git = "https://github.com/urbanslug/eds.git" }
+needletail = "0.4.1"

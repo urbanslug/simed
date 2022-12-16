@@ -3,27 +3,11 @@ use rand::distributions::{Distribution, Uniform};
 use std::collections::{HashMap, HashSet};
 
 mod cli;
+mod io;
 mod types;
 mod utils;
 
 // type Segment = IntervalNode<(), usize>;
-
-fn generate_genome(genome_length: usize) -> String {
-    // generate genome with a uniform distribution of bases
-
-    let between: Uniform<u8> = Uniform::from(0..4);
-    let mut rng = rand::thread_rng();
-
-    (0..genome_length)
-        .map(|_| match between.sample(&mut rng) {
-            0 => 'A',
-            1 => 'T',
-            2 => 'C',
-            3 => 'G',
-            _ => panic!("Unexpected char"),
-        })
-        .collect()
-}
 
 fn generate_random_base() -> char {
     let between: Uniform<u8> = Uniform::from(0..4);
@@ -41,10 +25,10 @@ fn generate_random_base() -> char {
 fn mutate(
     matrix: &mut Vec<Vec<u8>>,
     config: &types::Config,
+    genome_length: usize,
 ) -> (eds::DT, HashMap<usize, (usize, usize)>) {
-    let n = config.n;
     let mut selected_loci = HashSet::<usize>::new();
-    let locus_universe: Uniform<usize> = Uniform::from(0..n);
+    let locus_universe: Uniform<usize> = Uniform::from(0..genome_length);
     let variants_universe: Uniform<usize> = Uniform::from(1..config.s);
     let variants_length_universe: Uniform<usize> = Uniform::from(1..config.l + 1);
 
@@ -53,15 +37,15 @@ fn mutate(
     let mut counter = 0;
 
     let mut degenerate_regions =
-        HashMap::<usize, (usize, usize)>::with_capacity(config.max_degenerate);
-    let mut covered: HashSet<usize> = HashSet::with_capacity(config.n);
+        HashMap::<usize, (usize, usize)>::with_capacity(config.max_degenerate.unwrap());
+    let mut covered: HashSet<usize> = HashSet::with_capacity(genome_length);
 
-    let mut size = config.n;
+    let mut size = genome_length;
 
     let buffer = 0; // artificial buffer between degenerate letters
 
     loop {
-        if counter >= config.max_degenerate {
+        if counter >= config.max_degenerate.unwrap() {
             break;
         }
 
@@ -77,7 +61,7 @@ fn mutate(
         let degenerate_start = locus;
         let degenerate_stop = locus + l;
 
-        if degenerate_stop >= config.n {
+        if degenerate_stop >= genome_length {
             continue;
         }
 
@@ -167,32 +151,42 @@ fn write_eds(dt: &eds::DT, lookup: &HashMap<usize, (usize, usize)>) {
 }
 
 fn main() {
-    let config = cli::start();
+    let mut config = cli::start();
+
+    let genome = match &config.fasta {
+        Some(f) => io::read_sequence(&f),
+        _ => io::generate_sequence(config.n.unwrap()),
+    };
+
+    let genome_length = genome.len();
+
+    let x = utils::percent(config.d, genome_length);
+    config.max_degenerate = Some(x);
 
     eprintln!(
         "Config:\n\
-               {0:indent_two$}DT width: {1}\n\
-               {0:indent_two$}Degeneracy: {2}%\n\
-               {0:indent_two$}Max variants in a degenerate segment: {3}\n\
-               {0:indent_two$}Max length of a variant: {4}\n\
-               {0:indent_two$}Max number of degenerate letters in DT: {5}",
+         {0:indent_two$}Genome length/width: {1}\n\
+         {0:indent_two$}Degeneracy: {2}%\n\
+         {0:indent_two$}Inelastic: {3}\n\
+         {0:indent_two$}Max variants in a degenerate segment: {4}\n\
+         {0:indent_two$}Max length of a variant: {5}\n\
+         {0:indent_two$}Max number of degenerate letters in (E)DT: {6}",
         "",
-        config.n,
+        genome_length,
         config.d,
+        config.i,
         config.s,
         config.l,
-        config.max_degenerate,
+        config.max_degenerate.unwrap(),
         indent_two = 2,
     );
 
-    if (config.max_degenerate * config.l) >= percent(25, config.n) {
+    if (config.max_degenerate.unwrap() * config.l) >= percent(25, genome_length) {
         eprintln!("Warning: too much variation. More than 25% variation");
     }
 
-    let genome = generate_genome(config.n);
-
     let mut matrix: Vec<Vec<u8>> = genome.chars().map(|c| vec![c as u8]).collect();
-    let (dt, region_map) = mutate(&mut matrix, &config);
+    let (dt, region_map) = mutate(&mut matrix, &config, genome_length);
 
     // output eds format
     write_eds(&dt, &region_map);
