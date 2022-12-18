@@ -21,14 +21,13 @@ pub fn read_sequence(fp: &str) -> String {
     let num_bases = seq.len();
 
     eprintln!(
-        "{0:two_spaces$}Done processing fasta: \n\
-         {0:four_spaces$}Sequence: {name} \n\
-         {0:four_spaces$}Number of bases: {bases}.",
+        "Done processing fasta: \n\
+         {0:two_spaces$}Sequence: {name} \n\
+         {0:two_spaces$}Number of bases: {bases}.",
         "",
         bases = num_bases,
         name = std::str::from_utf8(&name).unwrap(),
         two_spaces = 2,
-        four_spaces = 4
     );
 
     std::str::from_utf8(&seq).unwrap().to_string()

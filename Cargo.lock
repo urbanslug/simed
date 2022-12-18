@@ -95,11 +95,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "eds"
-version = "0.0.1"
-source = "git+https://github.com/urbanslug/eds.git#b4d72134629ae83b188e5c27160856edd42cc0db"
-
-[[package]]
 name = "errno"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -297,7 +292,6 @@ name = "simed"
 version = "0.0.1"
 dependencies = [
  "clap",
- "eds",
  "needletail",
  "rand",
 ]

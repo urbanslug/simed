@@ -1,4 +1,3 @@
-use eds;
 use rand::distributions::{Distribution, Uniform};
 use std::collections::{HashMap, HashSet};
 
@@ -7,10 +6,9 @@ mod io;
 mod types;
 mod utils;
 
-// type Segment = IntervalNode<(), usize>;
-
-fn generate_random_base() -> char {
-    let between: Uniform<u8> = Uniform::from(0..4);
+fn generate_random_base(with_epsilons: bool) -> char {
+    let max: u8 = if with_epsilons { 5 } else { 4 };
+    let between: Uniform<u8> = Uniform::from(0..max);
     let mut rng = rand::thread_rng();
 
     match between.sample(&mut rng) {
@@ -18,6 +16,7 @@ fn generate_random_base() -> char {
         1 => 'T',
         2 => 'C',
         3 => 'G',
+        4 => '*',
         _ => panic!("Unexpected char"),
     }
 }
@@ -26,7 +25,7 @@ fn mutate(
     matrix: &mut Vec<Vec<u8>>,
     config: &types::Config,
     genome_length: usize,
-) -> (eds::DT, HashMap<usize, (usize, usize)>) {
+) -> HashMap<usize, (usize, usize)> {
     let mut selected_loci = HashSet::<usize>::new();
     let locus_universe: Uniform<usize> = Uniform::from(0..genome_length);
     let variants_universe: Uniform<usize> = Uniform::from(1..config.s);
@@ -90,13 +89,15 @@ fn mutate(
                     break;
                 }
 
-                let base = generate_random_base() as u8;
+                let base = generate_random_base(!config.i) as u8;
 
                 if s < types::NUCLEOTIDE_COUNT && matrix[i].iter().any(|b| *b == base) {
                     continue;
                 }
                 matrix[i].push(base as u8);
-                size += 1;
+                if base != b'*' {
+                    size += 1;
+                }
                 s_prime += 1;
             }
         }
@@ -105,24 +106,14 @@ fn mutate(
         counter += 1;
     }
 
-    let dt = eds::DT {
-        data: matrix.clone(),
-        z: config.s,
-        size,
-    };
-
-    (dt, degenerate_regions)
+    degenerate_regions
 }
 
-fn percent(d: usize, n: usize) -> usize {
-    ((d as f64 / 100_f64) * n as f64).floor() as usize
-}
-
-fn write_eds(dt: &eds::DT, lookup: &HashMap<usize, (usize, usize)>) {
+fn write_eds(dt: &Vec<Vec<u8>>, lookup: &HashMap<usize, (usize, usize)>, genome_length: usize) {
     let mut pos = 0;
 
     loop {
-        if pos >= dt.p() {
+        if pos >= genome_length {
             break;
         }
 
@@ -136,7 +127,10 @@ fn write_eds(dt: &eds::DT, lookup: &HashMap<usize, (usize, usize)>) {
                 print!("{{");
                 for s in 0..=depth {
                     for l in pos..pos + length {
-                        print!("{}", dt[l][s] as char);
+                        let c = dt[l][s] as char;
+                        if c != '*' {
+                            print!("{c}");
+                        }
                     }
                     if s < depth {
                         print!(",");
@@ -181,13 +175,13 @@ fn main() {
         indent_two = 2,
     );
 
-    if (config.max_degenerate.unwrap() * config.l) >= percent(25, genome_length) {
+    if (config.max_degenerate.unwrap() * config.l) >= utils::percent(25.0, genome_length) {
         eprintln!("Warning: too much variation. More than 25% variation");
     }
 
     let mut matrix: Vec<Vec<u8>> = genome.chars().map(|c| vec![c as u8]).collect();
-    let (dt, region_map) = mutate(&mut matrix, &config, genome_length);
+    let region_map = mutate(&mut matrix, &config, genome_length);
 
     // output eds format
-    write_eds(&dt, &region_map);
+    write_eds(&matrix, &region_map, genome_length);
 }
