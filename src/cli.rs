@@ -24,7 +24,14 @@ pub fn start() -> types::Config {
                 .help("Width of the (E)DT"),
         )
         .arg(
-            Arg::new("ineastlic")
+            Arg::new("generate")
+                .short('g')
+                .long("generate")
+                .action(clap::ArgAction::SetTrue)
+                .help("generate a linear genome and exit"),
+        )
+        .arg(
+            Arg::new("inelastic")
                 .short('i')
                 .long("inelastic")
                 .action(clap::ArgAction::SetTrue)
@@ -71,7 +78,8 @@ pub fn start() -> types::Config {
     // Gets a value for config if supplied by user, or defaults to "default.conf"
     let fasta: Option<String> = matches.get_one::<String>("fasta").map(|s| String::from(s));
     let n: Option<usize> = matches.get_one::<usize>("width").copied();
-    let i: bool = matches.get_one::<bool>("i").is_some();
+    let g: bool = *matches.get_one::<bool>("generate").unwrap();
+    let i: bool = *matches.get_one::<bool>("inelastic").unwrap();
     let d: f64 = *matches.get_one::<f64>("d").unwrap();
     let s: usize = *matches.get_one::<usize>("max_variants").unwrap();
     let l: usize = *matches.get_one::<usize>("max_length").unwrap();
@@ -83,6 +91,7 @@ pub fn start() -> types::Config {
     types::Config {
         fasta,
         i,
+        g,
         n,
         d,
         s,

@@ -147,12 +147,20 @@ fn write_eds(dt: &Vec<Vec<u8>>, lookup: &HashMap<usize, (usize, usize)>, genome_
 fn main() {
     let mut config = cli::start();
 
+    dbg!(&config);
+
     let genome = match &config.fasta {
         Some(f) => io::read_sequence(&f),
         _ => io::generate_sequence(config.n.unwrap()),
     };
 
     let genome_length = genome.len();
+
+    if config.g {
+        println!("> simed synthetic genome {genome_length}");
+        println!("{genome}");
+        return ();
+    }
 
     let x = utils::percent(config.d, genome_length);
     config.max_degenerate = Some(x);
@@ -161,14 +169,16 @@ fn main() {
         "Config:\n\
          {0:indent_two$}Genome length/width: {1}\n\
          {0:indent_two$}Degeneracy: {2}%\n\
-         {0:indent_two$}Inelastic: {3}\n\
-         {0:indent_two$}Max variants in a degenerate segment: {4}\n\
-         {0:indent_two$}Max length of a variant: {5}\n\
-         {0:indent_two$}Max number of degenerate letters in (E)DT: {6}",
+         {0:indent_two$}Generate: {3}\n\
+         {0:indent_two$}Inelastic: {4}\n\
+         {0:indent_two$}Max variants in a degenerate segment: {5}\n\
+         {0:indent_two$}Max length of a variant: {6}\n\
+         {0:indent_two$}Max number of degenerate letters in (E)DT: {7}",
         "",
         genome_length,
         config.d,
         config.i,
+        config.g,
         config.s,
         config.l,
         config.max_degenerate.unwrap(),
