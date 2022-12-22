@@ -25,7 +25,7 @@ fn mutate(
     matrix: &mut Vec<Vec<u8>>,
     config: &types::Config,
     genome_length: usize,
-) -> HashMap<usize, (usize, usize)> {
+) -> (HashMap<usize, (usize, usize)>, usize) {
     let mut selected_loci = HashSet::<usize>::new();
     let locus_universe: Uniform<usize> = Uniform::from(0..genome_length);
     let variants_universe: Uniform<usize> = Uniform::from(1..config.s);
@@ -35,6 +35,7 @@ fn mutate(
 
     let mut counter = 0;
 
+    // start => length, depth
     let mut degenerate_regions =
         HashMap::<usize, (usize, usize)>::with_capacity(config.max_degenerate.unwrap());
     let mut covered: HashSet<usize> = HashSet::with_capacity(genome_length);
@@ -106,7 +107,74 @@ fn mutate(
         counter += 1;
     }
 
-    degenerate_regions
+    (degenerate_regions, size)
+}
+
+fn count_strs(
+    degenerate_regions: &HashMap<usize, (usize, usize)>,
+    matrix: &Vec<Vec<u8>>,
+    genome_length: usize,
+) -> usize {
+    // count strings
+    let mut m = 0; // count one empty str per d letter
+    let mut strs = 0; // count one empty str per d letter
+    let mut eps_count = 0;
+    let mut has_eps: bool = false;
+    let mut not_eps_str: bool = false;
+
+    for (d_start, (len, depth)) in degenerate_regions.iter() {
+        has_eps = false;
+
+        for row in 0..=*depth {
+            not_eps_str = false;
+            for col in *d_start..*d_start + *len {
+                let ch = matrix[col][row];
+                if ch == b'A' || ch == b'C' || ch == b'T' || ch == b'G' {
+                    not_eps_str = true;
+                }
+            }
+
+            if not_eps_str {
+                strs += 1;
+                m += 1;
+            } else {
+                has_eps = true;
+            }
+        }
+
+        if has_eps {
+            eps_count += 1;
+            m += 1;
+        }
+    }
+
+    let mut degenerate_slices = degenerate_regions
+        .iter()
+        .map(|(d_start, (len, _))| (*d_start, *len))
+        .collect::<Vec<(usize, usize)>>();
+
+    degenerate_slices.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut solid_slices = Vec::<(usize, usize)>::new();
+    let mut solid_start = 0;
+    for (x, len) in degenerate_slices.iter() {
+        if (x - solid_start) > 0 {
+            solid_slices.push((solid_start, x - solid_start));
+        }
+        if x + len < genome_length {
+            solid_start = x + len;
+        }
+    }
+
+    if solid_start < genome_length {
+        solid_slices.push((solid_start, genome_length - solid_start));
+    }
+
+    strs += solid_slices.len();
+
+    m = eps_count + strs;
+
+    m
 }
 
 fn write_eds(dt: &Vec<Vec<u8>>, lookup: &HashMap<usize, (usize, usize)>, genome_length: usize) {
@@ -190,7 +258,19 @@ fn main() {
     }
 
     let mut matrix: Vec<Vec<u8>> = genome.chars().map(|c| vec![c as u8]).collect();
-    let region_map = mutate(&mut matrix, &config, genome_length);
+    let (region_map, size) = mutate(&mut matrix, &config, genome_length);
+
+    let m = count_strs(&region_map, &matrix, genome_length);
+
+    eprintln!(
+        "Stats:\n\
+               {0:indent_two$}size: {1}\n\
+               {0:indent_two$}m: {2}",
+        "",
+        size,
+        m,
+        indent_two = 2,
+    );
 
     // output eds format
     write_eds(&matrix, &region_map, genome_length);
