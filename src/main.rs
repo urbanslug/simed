@@ -28,8 +28,10 @@ fn mutate(
 ) -> (HashMap<usize, (usize, usize)>, usize) {
     let mut selected_loci = HashSet::<usize>::new();
     let locus_universe: Uniform<usize> = Uniform::from(0..genome_length);
-    let variants_universe: Uniform<usize> = Uniform::from(1..config.s);
-    let variants_length_universe: Uniform<usize> = Uniform::from(1..config.l + 1);
+    let variants_universe: Uniform<usize> =
+        Uniform::from((config.s as f64 / 2.0).floor() as usize..config.s);
+    let variants_length_universe: Uniform<usize> =
+        Uniform::from((config.l as f64 / 2.0).floor() as usize..config.l + 1);
 
     let mut rng = rand::thread_rng();
 
